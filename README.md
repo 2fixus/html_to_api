@@ -36,6 +36,7 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **JavaScript Execution**: Handle dynamic/SPA websites with headless browser (Puppeteer)
 - **Batch Operations**: Execute multiple API requests in a single call
 - **IP Whitelisting**: Restrict API access to specified IP addresses
+- **Audit Logging**: Comprehensive request/response logging to access.log
 
 ### 🔄 **Planned Advanced Features**
 None remaining - all features implemented!

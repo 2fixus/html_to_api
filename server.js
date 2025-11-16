@@ -25,7 +25,8 @@ const allowedIPs = process.env.ALLOWED_IPS ? process.env.ALLOWED_IPS.split(',').
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors());
-app.use(morgan('combined'));
+app.use(morgan('combined')); // Console logging
+app.use(morgan('combined', { stream: fs.createWriteStream(accessLogPath, { flags: 'a' }) })); // File logging
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -81,6 +82,7 @@ const metrics = {
 const fs = require('fs');
 const configPath = path.join(__dirname, 'config.json');
 const sessionPath = path.join(__dirname, 'sessions.json');
+const accessLogPath = path.join(__dirname, 'access.log');
 
 if (fs.existsSync(configPath)) {
   try {
@@ -571,7 +573,8 @@ app.get('/help', (req, res) => {
       'Webhook Integration',
       'Monitoring Dashboard',
       'Real-time Testing Interface',
-      'Batch Operations'
+      'Batch Operations',
+      'Audit Logging'
     ],
     endpoints: {
       'GET /': 'Serves the web interface',
