@@ -156,7 +156,11 @@ const configSchema = Joi.object({
     password: Joi.string().required(),
     loginPath: Joi.string().default('login')
   }).optional(),
-  useBrowser: Joi.boolean().optional()
+  useBrowser: Joi.boolean().optional(),
+  pagination: Joi.object({
+    selector: Joi.string().required(),
+    maxPages: Joi.number().integer().min(1).max(50).default(5)
+  }).optional()
 });
 
 // Load configuration from file if exists
@@ -258,6 +262,45 @@ async function performLogin(jar, baseUrl, auth) {
   } catch (error) {
     console.error('Automated login failed:', error.message);
   }
+}
+
+// Handle pagination by fetching all pages and combining data
+async function handlePagination($, config, axiosInstance) {
+  const baseData = extractData($, config);
+  const { selector, maxPages } = config.pagination;
+  const nextLinks = [];
+
+  // Find all pagination links
+  $(selector).each((i, el) => {
+    const href = $(el).attr('href');
+    if (href && !nextLinks.includes(href)) {
+      nextLinks.push(href);
+    }
+  });
+
+  // Limit to maxPages
+  const pagesToFetch = nextLinks.slice(0, maxPages - 1); // -1 because first page already done
+
+  for (const link of pagesToFetch) {
+    try {
+      const response = await axiosInstance.get(link);
+      const $$ = cheerio.load(response.data);
+      const pageData = extractData($$, config);
+
+      // Combine data (assuming arrays)
+      Object.keys(pageData).forEach(key => {
+        if (Array.isArray(pageData[key]) && Array.isArray(baseData[key])) {
+          baseData[key] = baseData[key].concat(pageData[key]);
+        } else if (typeof pageData[key] === 'string' && baseData[key]) {
+          // For non-arrays, perhaps append or something, but skip for now
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching paginated page:', error.message);
+    }
+  }
+
+  return baseData;
 }
 
 // Get page content with headless browser for JS execution
@@ -388,7 +431,12 @@ async function makeAPICall(domain, path, method = 'GET', data = null, config) {
   }
 
   const $ = cheerio.load(html);
-  const extractedData = extractData($, config);
+  let extractedData = extractData($, config);
+
+  // Handle pagination if configured
+  if (method === 'GET' && config.pagination) {
+    extractedData = await handlePagination($, config, axiosInstance);
+  }
 
   const result = {
     domain,
@@ -481,7 +529,7 @@ app.post('/config', (req, res) => {
     return res.status(400).json({ error: error.details[0].message });
   }
 
-  const { domain, baseUrl, selectors, auth, webhookUrl, useBrowser } = value;
+  const { domain, baseUrl, selectors, auth, webhookUrl, useBrowser, pagination } = value;
 
   websiteConfigs[domain] = {
     baseUrl,
@@ -489,6 +537,7 @@ app.post('/config', (req, res) => {
     auth: auth || null,
     webhookUrl: webhookUrl || null,
     useBrowser: useBrowser || false,
+    pagination: pagination || null,
     created: new Date().toISOString()
   };
 
@@ -669,7 +718,8 @@ app.get('/help', (req, res) => {
       'Audit Logging',
       'CORS Policies',
       'Configuration Validation',
-      'Circuit Breaker'
+      'Circuit Breaker',
+      'Pagination Detection'
     ],
     endpoints: {
       'GET /': 'Serves the web interface',
@@ -698,7 +748,11 @@ app.get('/help', (req, res) => {
         password: 'Password for authentication',
         loginPath: 'Login endpoint path'
       },
-      useBrowser: 'Use headless browser for JS execution (boolean, optional)'
+      useBrowser: 'Use headless browser for JS execution (boolean, optional)',
+      pagination: {
+        selector: 'CSS selector for next page links',
+        maxPages: 'Maximum number of pages to fetch (default 5)'
+      }
     },
     examples: {
       configuration: {

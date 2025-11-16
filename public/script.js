@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = document.getElementById('password').value.trim();
         const loginPath = document.getElementById('loginPath').value.trim();
         const useBrowser = document.getElementById('useBrowser').checked;
+        const paginationSelector = document.getElementById('paginationSelector').value.trim();
+        const maxPages = parseInt(document.getElementById('maxPages').value) || 5;
 
         let selectors = {};
         if (selectorsText) {
@@ -26,8 +28,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const auth = username && password ? { username, password, loginPath: loginPath || 'login' } : null;
+        const pagination = paginationSelector ? { selector: paginationSelector, maxPages } : null;
 
-        addConfiguration(domain, baseUrl, selectors, webhookUrl, auth, useBrowser);
+        addConfiguration(domain, baseUrl, selectors, webhookUrl, auth, useBrowser, pagination);
     });
 
     // Handle test form submission
@@ -82,6 +85,7 @@ function createConfigCard(domain, config) {
         <p><strong>Webhook URL:</strong> ${config.webhookUrl || 'None'}</p>
         <p><strong>Auth:</strong> ${config.auth ? 'Enabled' : 'None'}</p>
         <p><strong>Browser:</strong> ${config.useBrowser ? 'Enabled' : 'Disabled'}</p>
+        <p><strong>Pagination:</strong> ${config.pagination ? 'Enabled' : 'Disabled'}</p>
         <p><strong>Created:</strong> ${new Date(config.created).toLocaleString()}</p>
         <div class="actions">
             <button class="btn btn-primary" onclick="testEndpoint('${domain}')">Test API</button>
@@ -93,14 +97,14 @@ function createConfigCard(domain, config) {
     return card;
 }
 
-async function addConfiguration(domain, baseUrl, selectors, webhookUrl, auth, useBrowser) {
+async function addConfiguration(domain, baseUrl, selectors, webhookUrl, auth, useBrowser, pagination) {
     try {
         const response = await fetch('/config', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ domain, baseUrl, selectors, webhookUrl: webhookUrl || null, auth, useBrowser })
+            body: JSON.stringify({ domain, baseUrl, selectors, webhookUrl: webhookUrl || null, auth, useBrowser, pagination })
         });
 
         if (response.ok) {

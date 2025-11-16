@@ -40,6 +40,7 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **CORS Policies**: Granular cross-origin control via ALLOWED_ORIGINS
 - **Configuration Validation**: Schema validation for config inputs
 - **Circuit Breaker**: Prevents requests to failing domains
+- **Pagination Detection**: Auto-fetch and combine data from paginated content
 
 ### 🔄 **Planned Advanced Features**
 None remaining - all features implemented!

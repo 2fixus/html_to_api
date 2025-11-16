@@ -44,15 +44,21 @@
                      </div>
 
                      <div class="form-group">
-                         <label for="webhookUrl">Webhook URL (optional):</label>
-                         <input type="url" id="webhookUrl" placeholder="https://example.com/webhook">
-                     </div>
-
-                     <div class="form-group">
-                         <label>
-                             <input type="checkbox" id="useBrowser"> Use headless browser for JavaScript execution
+                         <label for="useBrowser"> Use headless browser for JavaScript execution
                          </label>
                      </div>
+
+                     <details>
+                         <summary>Pagination (optional)</summary>
+                         <div class="form-group">
+                             <label for="paginationSelector">Next Page Selector:</label>
+                             <input type="text" id="paginationSelector" placeholder=".next, .pagination a:last-child">
+                         </div>
+                         <div class="form-group">
+                             <label for="maxPages">Max Pages:</label>
+                             <input type="number" id="maxPages" value="5" min="1" max="50">
+                         </div>
+                     </details>
 
                      <details>
                          <summary>Authentication (optional)</summary>
