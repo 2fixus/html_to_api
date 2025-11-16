@@ -506,6 +506,39 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Batch operations endpoint
+app.post('/batch', async (req, res) => {
+  const { requests } = req.body;
+
+  if (!Array.isArray(requests)) {
+    return res.status(400).json({ error: 'requests must be an array' });
+  }
+
+  if (requests.length > 10) {
+    return res.status(400).json({ error: 'Maximum 10 requests per batch' });
+  }
+
+  const results = [];
+
+  for (const request of requests) {
+    const { domain, path, method = 'GET', data } = request;
+
+    if (!domain || !websiteConfigs[domain]) {
+      results.push({ success: false, error: `Domain ${domain} not configured` });
+      continue;
+    }
+
+    try {
+      const result = await makeAPICall(domain, path, method, data, websiteConfigs[domain]);
+      results.push({ success: true, result });
+    } catch (error) {
+      results.push({ success: false, error: error.message });
+    }
+  }
+
+  res.json({ results });
+});
+
 // Help endpoint
 app.get('/help', (req, res) => {
   res.json({
@@ -524,7 +557,8 @@ app.get('/help', (req, res) => {
       'JavaScript Execution with headless browser',
       'Webhook Integration',
       'Monitoring Dashboard',
-      'Real-time Testing Interface'
+      'Real-time Testing Interface',
+      'Batch Operations'
     ],
     endpoints: {
       'GET /': 'Serves the web interface',
@@ -533,6 +567,7 @@ app.get('/help', (req, res) => {
       'DELETE /config/{domain}': 'Remove configuration',
       'GET /api/{domain}/{path}': 'Fetch and parse HTML page',
       'POST /api/{domain}/{path}': 'Submit form data',
+      'POST /batch': 'Execute multiple requests in batch',
       'GET /sessions': 'List active sessions',
       'DELETE /sessions/{domain}': 'Clear session for domain',
       'DELETE /sessions': 'Clear all sessions',
@@ -571,7 +606,13 @@ app.get('/help', (req, res) => {
         useBrowser: true
       },
       api_get: 'GET /api/example.com/page',
-      api_post: 'POST /api/example.com/login -d "username=user&password=pass"'
+      api_post: 'POST /api/example.com/login -d "username=user&password=pass"',
+      batch: {
+        requests: [
+          { domain: 'example.com', path: 'page1', method: 'GET' },
+          { domain: 'example.com', path: 'login', method: 'POST', data: { username: 'user', password: 'pass' } }
+        ]
+      }
     },
     security: 'Never log sensitive information. Validate inputs. Use HTTPS in production.'
   });

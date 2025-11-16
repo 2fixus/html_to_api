@@ -34,6 +34,7 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **Webhook Integration**: Async notifications sent to configured URLs after API calls
 - **Authentication Automation**: Automated login flows for authenticated websites
 - **JavaScript Execution**: Handle dynamic/SPA websites with headless browser (Puppeteer)
+- **Batch Operations**: Execute multiple API requests in a single call
 
 ### 🔄 **Planned Advanced Features**
 None remaining - all features implemented!
@@ -106,6 +107,21 @@ Submit form data to an HTML page.
 curl -X POST http://localhost:3000/api/example.com/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=test&password=test"
+```
+
+### POST `/batch`
+Execute multiple API requests in a single batch call.
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requests": [
+      {"domain": "example.com", "path": "page1", "method": "GET"},
+      {"domain": "example.com", "path": "login", "method": "POST", "data": {"username": "test", "password": "test"}}
+    ]
+  }'
 ```
 
 ### Configuration Management
