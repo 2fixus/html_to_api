@@ -1,4 +1,5 @@
 const express = require('express');
+const https = require('https');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const cors = require('cors');
@@ -379,8 +380,15 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-app.listen(PORT, () => {
-  console.log(`HTML-to-API Proxy server running on port ${PORT}`);
-  console.log(`Access the web interface at http://localhost:${PORT}`);
+const httpsOptions = {
+  key: fs.readFileSync('key.pem'),
+  cert: fs.readFileSync('cert.pem')
+};
+
+const server = https.createServer(httpsOptions, app);
+
+server.listen(PORT, () => {
+  console.log(`HTML-to-API Proxy server running on HTTPS port ${PORT}`);
+  console.log(`Access the web interface at https://localhost:${PORT}`);
   console.log(`Session management and caching enabled!`);
 });

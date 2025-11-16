@@ -55,3 +55,7 @@ logs
 
 # Config files
 config.json
+
+# SSL certificates
+key.pem
+cert.pem
