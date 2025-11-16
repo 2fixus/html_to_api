@@ -48,6 +48,22 @@
                          <input type="url" id="webhookUrl" placeholder="https://example.com/webhook">
                      </div>
 
+                     <details>
+                         <summary>Authentication (optional)</summary>
+                         <div class="form-group">
+                             <label for="username">Username:</label>
+                             <input type="text" id="username" placeholder="username">
+                         </div>
+                         <div class="form-group">
+                             <label for="password">Password:</label>
+                             <input type="password" id="password" placeholder="password">
+                         </div>
+                         <div class="form-group">
+                             <label for="loginPath">Login Path:</label>
+                             <input type="text" id="loginPath" placeholder="login" value="login">
+                         </div>
+                     </details>
+
                     <button type="submit" class="btn btn-primary">Add Configuration</button>
                 </form>
             </section>

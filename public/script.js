@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const baseUrl = document.getElementById('baseUrl').value.trim();
         const selectorsText = document.getElementById('selectors').value.trim();
         const webhookUrl = document.getElementById('webhookUrl').value.trim();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const loginPath = document.getElementById('loginPath').value.trim();
 
         let selectors = {};
         if (selectorsText) {
@@ -21,7 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        addConfiguration(domain, baseUrl, selectors, webhookUrl);
+        const auth = username && password ? { username, password, loginPath: loginPath || 'login' } : null;
+
+        addConfiguration(domain, baseUrl, selectors, webhookUrl, auth);
     });
 
     // Handle test form submission
@@ -74,6 +79,7 @@ function createConfigCard(domain, config) {
         <h3>${domain}</h3>
         <p><strong>Base URL:</strong> ${config.baseUrl}</p>
         <p><strong>Webhook URL:</strong> ${config.webhookUrl || 'None'}</p>
+        <p><strong>Auth:</strong> ${config.auth ? 'Enabled' : 'None'}</p>
         <p><strong>Created:</strong> ${new Date(config.created).toLocaleString()}</p>
         <div class="actions">
             <button class="btn btn-primary" onclick="testEndpoint('${domain}')">Test API</button>
@@ -85,14 +91,14 @@ function createConfigCard(domain, config) {
     return card;
 }
 
-async function addConfiguration(domain, baseUrl, selectors, webhookUrl) {
+async function addConfiguration(domain, baseUrl, selectors, webhookUrl, auth) {
     try {
         const response = await fetch('/config', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ domain, baseUrl, selectors, webhookUrl: webhookUrl || null })
+            body: JSON.stringify({ domain, baseUrl, selectors, webhookUrl: webhookUrl || null, auth })
         });
 
         if (response.ok) {

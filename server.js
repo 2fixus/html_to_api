@@ -126,17 +126,42 @@ function saveSessions() {
 }
 
 // Get or create cookie jar for domain
-function getCookieJar(domain, baseUrl) {
+async function getCookieJar(domain, baseUrl, config) {
   if (!sessionStore[domain]) {
     sessionStore[domain] = {
       jar: new CookieJar(),
       baseUrl,
       lastUsed: new Date()
     };
+
+    // Perform automated login if auth is configured
+    if (config && config.auth && config.auth.loginPath) {
+      await performLogin(sessionStore[domain].jar, baseUrl, config.auth);
+    }
   } else {
     sessionStore[domain].lastUsed = new Date();
   }
   return sessionStore[domain].jar;
+}
+
+// Perform automated login
+async function performLogin(jar, baseUrl, auth) {
+  const axiosInstance = cookieJarSupport(axios.create({ jar }));
+
+  try {
+    await axiosInstance.post(`${baseUrl}/${auth.loginPath}`, {
+      username: auth.username,
+      password: auth.password
+    }, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'HTML-to-API-Proxy/1.0'
+      }
+    });
+    console.log(`Automated login successful for ${baseUrl}`);
+  } catch (error) {
+    console.error('Automated login failed:', error.message);
+  }
 }
 
 // Cache management functions
@@ -165,7 +190,7 @@ async function makeAPICall(domain, path, method = 'GET', data = null, config) {
   }
 
   const url = `${config.baseUrl}/${path}`;
-  const jar = getCookieJar(domain, config.baseUrl);
+  const jar = await getCookieJar(domain, config.baseUrl, config);
   const axiosInstance = cookieJarSupport(axios.create({ jar }));
 
   // Configure retry logic with exponential backoff
