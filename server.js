@@ -7,6 +7,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const multer = require('multer');
+const FormData = require('form-data');
 const { CookieJar } = require('tough-cookie');
 const { wrapper: cookieJarSupport } = require('axios-cookiejar-support');
 const memoryCache = require('memory-cache');
@@ -21,6 +23,9 @@ app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// File upload middleware
+const upload = multer();
 
 // Rate limiting
 const limiter = rateLimit({
@@ -171,8 +176,30 @@ async function makeAPICall(domain, path, method = 'GET', data = null, config) {
   };
 
   if (method === 'POST' && data) {
-    axiosConfig.data = data;
-    axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    if (data.files && data.files.length > 0) {
+      // Handle file uploads
+      const form = new FormData();
+
+      // Add form fields
+      Object.keys(data.body || {}).forEach(key => {
+        form.append(key, data.body[key]);
+      });
+
+      // Add files
+      data.files.forEach(file => {
+        form.append(file.fieldname, file.buffer, {
+          filename: file.originalname,
+          contentType: file.mimetype
+        });
+      });
+
+      axiosConfig.data = form;
+      axiosConfig.headers = { ...axiosConfig.headers, ...form.getHeaders() };
+    } else {
+      // Regular form data
+      axiosConfig.data = data.body || data;
+      axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    }
   }
 
   const response = await axiosInstance.request(axiosConfig);
@@ -215,7 +242,7 @@ app.get('/api/:domain/*', async (req, res) => {
 });
 
 // POST endpoint for form submissions
-app.post('/api/:domain/*', async (req, res) => {
+app.post('/api/:domain/*', upload.any(), async (req, res) => {
   const domain = req.params.domain;
   const path = req.params[0] || '';
   const config = websiteConfigs[domain];
@@ -225,7 +252,7 @@ app.post('/api/:domain/*', async (req, res) => {
   }
 
   try {
-    const result = await makeAPICall(domain, path, 'POST', req.body, config);
+    const result = await makeAPICall(domain, path, 'POST', req, config);
     res.json(result);
   } catch (error) {
     console.error('Error submitting form:', error);
