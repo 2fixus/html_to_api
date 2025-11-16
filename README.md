@@ -29,11 +29,11 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **Cache Management**: API endpoints to monitor and clear cache
 - **Retry Logic**: Exponential backoff for failed requests (3 retries)
 - **Real-time Testing**: Built-in API testing interface in web UI
+- **File Upload Support**: Handle forms with file attachments via multipart/form-data
 
 ### 🔄 **Planned Advanced Features**
 - **JavaScript Execution**: Handle dynamic/SPA websites with headless browser
 - **Authentication Automation**: Automated login flows and session management
-- **File Upload Support**: Handle forms with file attachments
 - **Webhook Integration**: Async notifications for long-running operations
 - **Monitoring Dashboard**: Usage analytics and performance metrics
 
