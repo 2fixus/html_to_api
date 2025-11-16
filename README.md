@@ -39,6 +39,7 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **Audit Logging**: Comprehensive request/response logging to access.log
 - **CORS Policies**: Granular cross-origin control via ALLOWED_ORIGINS
 - **Configuration Validation**: Schema validation for config inputs
+- **Circuit Breaker**: Prevents requests to failing domains
 
 ### 🔄 **Planned Advanced Features**
 None remaining - all features implemented!

@@ -82,6 +82,69 @@ const metrics = {
   startTime: Date.now()
 };
 
+// Circuit Breaker configuration
+const CIRCUIT_BREAKER_FAILURE_THRESHOLD = parseInt(process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD) || 5;
+const CIRCUIT_BREAKER_TIMEOUT = parseInt(process.env.CIRCUIT_BREAKER_TIMEOUT) || 60000; // 1 minute
+const CIRCUIT_BREAKER_SUCCESS_THRESHOLD = parseInt(process.env.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) || 3;
+
+// Circuit Breaker storage
+const circuitBreakers = {}; // domain -> { state: 'closed'|'open'|'half-open', failures: 0, lastFailure: timestamp, successes: 0 }
+
+// Circuit Breaker functions
+function getCircuitBreaker(domain) {
+  if (!circuitBreakers[domain]) {
+    circuitBreakers[domain] = {
+      state: 'closed',
+      failures: 0,
+      lastFailure: null,
+      successes: 0
+    };
+  }
+  return circuitBreakers[domain];
+}
+
+function recordFailure(domain) {
+  const cb = getCircuitBreaker(domain);
+  cb.failures++;
+  cb.lastFailure = Date.now();
+  if (cb.failures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
+    cb.state = 'open';
+    console.log(`Circuit breaker opened for domain: ${domain}`);
+  }
+}
+
+function recordSuccess(domain) {
+  const cb = getCircuitBreaker(domain);
+  if (cb.state === 'half-open') {
+    cb.successes++;
+    if (cb.successes >= CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
+      cb.state = 'closed';
+      cb.failures = 0;
+      cb.successes = 0;
+      console.log(`Circuit breaker closed for domain: ${domain}`);
+    }
+  } else if (cb.state === 'closed') {
+    cb.failures = 0; // Reset on success
+  }
+}
+
+function canProceed(domain) {
+  const cb = getCircuitBreaker(domain);
+  if (cb.state === 'closed') {
+    return true;
+  }
+  if (cb.state === 'open') {
+    if (Date.now() - cb.lastFailure > CIRCUIT_BREAKER_TIMEOUT) {
+      cb.state = 'half-open';
+      cb.successes = 0;
+      console.log(`Circuit breaker half-open for domain: ${domain}`);
+      return true;
+    }
+    return false;
+  }
+  return true; // half-open
+}
+
 // Configuration validation schema
 const configSchema = Joi.object({
   domain: Joi.string().domain().required(),
@@ -250,6 +313,11 @@ function setCachedResponse(key, data, ttl = 300000) { // 5 minutes default
 
 // Enhanced API call with caching
 async function makeAPICall(domain, path, method = 'GET', data = null, config) {
+  // Check circuit breaker
+  if (!canProceed(domain)) {
+    throw new Error('Circuit breaker is open for this domain');
+  }
+
   const cacheKey = getCacheKey(domain, path, method);
 
   // Try to get from cache first (only for GET requests)
@@ -362,9 +430,11 @@ app.get('/api/:domain/*', async (req, res) => {
     metrics.requestCountByDomain[domain] = (metrics.requestCountByDomain[domain] || 0) + 1;
     metrics.responseTimeSum += (end - start);
     metrics.responseTimeCount++;
+    recordSuccess(domain);
     res.json(result);
   } catch (error) {
     metrics.totalErrors++;
+    recordFailure(domain);
     console.error('Error fetching page:', error);
     res.status(500).json({ error: 'Failed to fetch page', details: error.message });
   }
@@ -389,9 +459,11 @@ app.post('/api/:domain/*', upload.any(), async (req, res) => {
     metrics.requestCountByDomain[domain] = (metrics.requestCountByDomain[domain] || 0) + 1;
     metrics.responseTimeSum += (end - start);
     metrics.responseTimeCount++;
+    recordSuccess(domain);
     res.json(result);
   } catch (error) {
     metrics.totalErrors++;
+    recordFailure(domain);
     console.error('Error submitting form:', error);
     res.status(500).json({ error: 'Failed to submit form', details: error.message });
   }
@@ -596,7 +668,8 @@ app.get('/help', (req, res) => {
       'Batch Operations',
       'Audit Logging',
       'CORS Policies',
-      'Configuration Validation'
+      'Configuration Validation',
+      'Circuit Breaker'
     ],
     endpoints: {
       'GET /': 'Serves the web interface',
