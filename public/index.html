@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML-to-API Proxy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HTML-to-API Proxy</h1>
+            <p>Convert any HTML website into a dynamic REST API</p>
+        </header>
+
+        <div class="main-content">
+            <section class="config-section">
+                <h2>Configure Website</h2>
+                <form id="configForm">
+                    <div class="form-group">
+                        <label for="domain">Domain Name:</label>
+                        <input type="text" id="domain" placeholder="example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="baseUrl">Base URL:</label>
+                        <input type="url" id="baseUrl" placeholder="https://example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="selectors">Data Selectors (JSON):</label>
+                        <textarea id="selectors" rows="6" placeholder='{
+  "title": "h1",
+  "content": ".main-content",
+  "items": {
+    "type": "array",
+    "selector": ".item",
+    "fields": {
+      "name": ".name",
+      "price": ".price"
+    }
+  }
+}'></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Configuration</button>
+                </form>
+            </section>
+
+            <section class="configs-section">
+                <h2>Configured Websites</h2>
+                <div id="configsList" class="configs-list">
+                    <!-- Configurations will be loaded here -->
+                </div>
+            </section>
+
+            <section class="api-section">
+                <h2>API Usage</h2>
+                <div class="api-examples">
+                    <h3>GET Request:</h3>
+                    <code>GET /api/{domain}/{path}</code>
+                    <p>Example: <code>GET /api/example.com/products</code></p>
+
+                    <h3>POST Request:</h3>
+                    <code>POST /api/{domain}/{path}</code>
+                    <p>Example: <code>POST /api/example.com/login</code></p>
+
+                    <h3>Response Format:</h3>
+                    <pre><code>{
+  "domain": "example.com",
+  "url": "https://example.com/products",
+  "data": {
+    "forms": [...],
+    "title": "Page Title",
+    "content": "Page content..."
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}</code></pre>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html></content>
+</xai:function_call">### Implement HTML scraping and parsing functionality
+
+Now I'll create the CSS and JavaScript for the interface, and then work on the HTML scraping functionality. Let me create the CSS first. 
+
+<xai:function_call name="write">
+<parameter name="filePath">/home/a/https_to_API/public/styles.css
