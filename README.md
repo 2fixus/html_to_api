@@ -7,9 +7,29 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **Dynamic API Generation**: Automatically creates REST endpoints for any configured website
 - **HTML Parsing**: Extracts structured data from HTML pages using CSS selectors
 - **Form Detection**: Identifies and handles HTML forms for POST requests
+- **Bidirectional Communication**: Both GET (read) and POST (write) operations
 - **Configuration Management**: Web-based interface for managing website configurations
 - **CORS Support**: Ready for cross-origin requests from web applications
 - **Security**: Helmet middleware for security headers
+- **Session Management**: Cookie persistence for authenticated sessions
+- **Error Handling**: Comprehensive error reporting and recovery
+
+## Advanced Capabilities
+
+### Current Advanced Features
+- **Custom Data Selectors**: Extract specific data using CSS selectors
+- **Form Field Detection**: Automatic discovery of input fields and form actions
+- **Response Transformation**: Convert HTML responses to structured JSON
+- **Multi-domain Support**: Configure multiple websites simultaneously
+- **Real-time Testing**: Built-in API testing interface
+
+### Planned Advanced Features
+- **JavaScript Execution**: Handle dynamic/SPA websites with headless browser
+- **Authentication Automation**: Automated login flows and session management
+- **Caching & Performance**: Response caching and rate limiting
+- **File Upload Support**: Handle forms with file attachments
+- **Webhook Integration**: Async notifications for long-running operations
+- **Monitoring Dashboard**: Usage analytics and performance metrics
 
 ## Quick Start
 
