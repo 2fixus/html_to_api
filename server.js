@@ -5,6 +5,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const { CookieJar } = require('tough-cookie');
+const { wrapper: cookieJarSupport } = require('axios-cookiejar-support');
+const memoryCache = require('memory-cache');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,20 +20,64 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', limiter);
+
+// Stricter rate limiting for configuration endpoints
+const configLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // limit each IP to 20 config requests per windowMs
+  message: 'Too many configuration requests, please try again later.',
+});
+app.use('/config', configLimiter);
+
 // Serve static files (HTML interface)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration storage (in production, use a database)
 let websiteConfigs = {};
 
+// Session storage for cookie jars (in production, use Redis/database)
+let sessionStore = {};
+
 // Load configuration from file if exists
 const fs = require('fs');
 const configPath = path.join(__dirname, 'config.json');
+const sessionPath = path.join(__dirname, 'sessions.json');
+
 if (fs.existsSync(configPath)) {
   try {
     websiteConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   } catch (error) {
     console.error('Error loading config:', error);
+  }
+}
+
+// Load sessions from file if exists
+if (fs.existsSync(sessionPath)) {
+  try {
+    const sessionData = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+    // Recreate cookie jars from serialized data
+    Object.keys(sessionData).forEach(domain => {
+      const jar = new CookieJar();
+      sessionData[domain].cookies.forEach(cookieData => {
+        jar.setCookieSync(cookieData, sessionData[domain].baseUrl);
+      });
+      sessionStore[domain] = {
+        jar,
+        baseUrl: sessionData[domain].baseUrl,
+        lastUsed: new Date(sessionData[domain].lastUsed)
+      };
+    });
+  } catch (error) {
+    console.error('Error loading sessions:', error);
   }
 }
 
@@ -40,6 +88,100 @@ function saveConfig() {
   } catch (error) {
     console.error('Error saving config:', error);
   }
+}
+
+// Save sessions to file
+function saveSessions() {
+  try {
+    const sessionData = {};
+    Object.keys(sessionStore).forEach(domain => {
+      const session = sessionStore[domain];
+      sessionData[domain] = {
+        baseUrl: session.baseUrl,
+        lastUsed: session.lastUsed.toISOString(),
+        cookies: session.jar.getCookiesSync(session.baseUrl).map(cookie => cookie.toString())
+      };
+    });
+    fs.writeFileSync(sessionPath, JSON.stringify(sessionData, null, 2));
+  } catch (error) {
+    console.error('Error saving sessions:', error);
+  }
+}
+
+// Get or create cookie jar for domain
+function getCookieJar(domain, baseUrl) {
+  if (!sessionStore[domain]) {
+    sessionStore[domain] = {
+      jar: new CookieJar(),
+      baseUrl,
+      lastUsed: new Date()
+    };
+  } else {
+    sessionStore[domain].lastUsed = new Date();
+  }
+  return sessionStore[domain].jar;
+}
+
+// Cache management functions
+function getCacheKey(domain, path, method = 'GET') {
+  return `${method}:${domain}:${path}`;
+}
+
+function getCachedResponse(key) {
+  return memoryCache.get(key);
+}
+
+function setCachedResponse(key, data, ttl = 300000) { // 5 minutes default
+  memoryCache.put(key, data, ttl);
+}
+
+// Enhanced API call with caching
+async function makeAPICall(domain, path, method = 'GET', data = null, config) {
+  const cacheKey = getCacheKey(domain, path, method);
+
+  // Try to get from cache first (only for GET requests)
+  if (method === 'GET') {
+    const cached = getCachedResponse(cacheKey);
+    if (cached) {
+      return { ...cached, cached: true };
+    }
+  }
+
+  const url = `${config.baseUrl}/${path}`;
+  const jar = getCookieJar(domain, config.baseUrl);
+  const axiosInstance = cookieJarSupport(axios.create({ jar }));
+
+  const axiosConfig = {
+    method,
+    url,
+    headers: {
+      'User-Agent': 'HTML-to-API-Proxy/1.0'
+    }
+  };
+
+  if (method === 'POST' && data) {
+    axiosConfig.data = data;
+    axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+  }
+
+  const response = await axiosInstance.request(axiosConfig);
+  const $ = cheerio.load(response.data);
+  const extractedData = extractData($, config);
+
+  const result = {
+    domain,
+    url,
+    data: extractedData,
+    timestamp: new Date().toISOString(),
+    status: response.status
+  };
+
+  // Cache GET responses
+  if (method === 'GET') {
+    setCachedResponse(cacheKey, result);
+  }
+
+  return result;
 }
 
 // Dynamic API endpoint generation
@@ -53,24 +195,8 @@ app.get('/api/:domain/*', async (req, res) => {
   }
 
   try {
-    const url = `${config.baseUrl}/${path}`;
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'HTML-to-API-Proxy/1.0'
-      }
-    });
-
-    const $ = cheerio.load(response.data);
-
-    // Extract structured data based on configuration
-    const extractedData = extractData($, config);
-
-    res.json({
-      domain,
-      url,
-      data: extractedData,
-      timestamp: new Date().toISOString()
-    });
+    const result = await makeAPICall(domain, path, 'GET', null, config);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching page:', error);
     res.status(500).json({ error: 'Failed to fetch page', details: error.message });
@@ -88,23 +214,8 @@ app.post('/api/:domain/*', async (req, res) => {
   }
 
   try {
-    const url = `${config.baseUrl}/${path}`;
-    const response = await axios.post(url, req.body, {
-      headers: {
-        'User-Agent': 'HTML-to-API-Proxy/1.0',
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-
-    const $ = cheerio.load(response.data);
-    const extractedData = extractData($, config);
-
-    res.json({
-      domain,
-      url,
-      data: extractedData,
-      timestamp: new Date().toISOString()
-    });
+    const result = await makeAPICall(domain, path, 'POST', req.body, config);
+    res.json(result);
   } catch (error) {
     console.error('Error submitting form:', error);
     res.status(500).json({ error: 'Failed to submit form', details: error.message });
@@ -117,7 +228,7 @@ app.get('/config', (req, res) => {
 });
 
 app.post('/config', (req, res) => {
-  const { domain, baseUrl, selectors } = req.body;
+  const { domain, baseUrl, selectors, auth } = req.body;
 
   if (!domain || !baseUrl) {
     return res.status(400).json({ error: 'Domain and baseUrl are required' });
@@ -126,6 +237,7 @@ app.post('/config', (req, res) => {
   websiteConfigs[domain] = {
     baseUrl,
     selectors: selectors || {},
+    auth: auth || null, // { username, password, loginPath }
     created: new Date().toISOString()
   };
 
@@ -143,6 +255,52 @@ app.delete('/config/:domain', (req, res) => {
   delete websiteConfigs[domain];
   saveConfig();
   res.json({ success: true });
+});
+
+// Session management endpoints
+app.get('/sessions', (req, res) => {
+  const sessions = {};
+  Object.keys(sessionStore).forEach(domain => {
+    const session = sessionStore[domain];
+    sessions[domain] = {
+      baseUrl: session.baseUrl,
+      lastUsed: session.lastUsed,
+      cookieCount: session.jar.getCookiesSync(session.baseUrl).length
+    };
+  });
+  res.json(sessions);
+});
+
+app.delete('/sessions/:domain', (req, res) => {
+  const domain = req.params.domain;
+
+  if (!sessionStore[domain]) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  delete sessionStore[domain];
+  saveSessions();
+  res.json({ success: true });
+});
+
+app.delete('/sessions', (req, res) => {
+  sessionStore = {};
+  saveSessions();
+  res.json({ success: true, message: 'All sessions cleared' });
+});
+
+// Cache management endpoints
+app.get('/cache/stats', (req, res) => {
+  res.json({
+    cacheSize: memoryCache.size(),
+    cacheKeys: memoryCache.keys(),
+    cacheInfo: 'Memory cache active'
+  });
+});
+
+app.delete('/cache', (req, res) => {
+  memoryCache.clear();
+  res.json({ success: true, message: 'Cache cleared' });
 });
 
 // Data extraction function
@@ -208,7 +366,21 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Graceful shutdown handler
+process.on('SIGINT', () => {
+  console.log('Saving sessions before shutdown...');
+  saveSessions();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Saving sessions before shutdown...');
+  saveSessions();
+  process.exit(0);
+});
+
 app.listen(PORT, () => {
   console.log(`HTML-to-API Proxy server running on port ${PORT}`);
   console.log(`Access the web interface at http://localhost:${PORT}`);
+  console.log(`Session management and caching enabled!`);
 });
