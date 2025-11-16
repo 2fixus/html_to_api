@@ -54,30 +54,65 @@
                 </div>
             </section>
 
-            <section class="api-section">
-                <h2>API Usage</h2>
-                <div class="api-examples">
-                    <h3>GET Request:</h3>
-                    <code>GET /api/{domain}/{path}</code>
-                    <p>Example: <code>GET /api/example.com/products</code></p>
+             <section class="api-section">
+                 <h2>API Usage</h2>
+                 <div class="api-examples">
+                     <h3>GET Request:</h3>
+                     <code>GET /api/{domain}/{path}</code>
+                     <p>Example: <code>GET /api/example.com/products</code></p>
 
-                    <h3>POST Request:</h3>
-                    <code>POST /api/{domain}/{path}</code>
-                    <p>Example: <code>POST /api/example.com/login</code></p>
+                     <h3>POST Request:</h3>
+                     <code>POST /api/{domain}/{path}</code>
+                     <p>Example: <code>POST /api/example.com/login</code></p>
 
-                    <h3>Response Format:</h3>
-                    <pre><code>{
-  "domain": "example.com",
-  "url": "https://example.com/products",
-  "data": {
-    "forms": [...],
-    "title": "Page Title",
-    "content": "Page content..."
-  },
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}</code></pre>
-                </div>
-            </section>
+                     <h3>Response Format:</h3>
+                     <pre><code>{
+   "domain": "example.com",
+   "url": "https://example.com/products",
+   "data": {
+     "forms": [...],
+     "title": "Page Title",
+     "content": "Page content..."
+   },
+   "timestamp": "2024-01-01T00:00:00.000Z"
+ }</code></pre>
+                 </div>
+             </section>
+
+             <section class="test-section">
+                 <h2>API Testing</h2>
+                 <form id="testForm">
+                     <div class="form-group">
+                         <label for="testDomain">Domain:</label>
+                         <input type="text" id="testDomain" placeholder="example.com" required>
+                     </div>
+
+                     <div class="form-group">
+                         <label for="testPath">Path:</label>
+                         <input type="text" id="testPath" placeholder="" required>
+                     </div>
+
+                     <div class="form-group">
+                         <label for="testMethod">Method:</label>
+                         <select id="testMethod">
+                             <option value="GET">GET</option>
+                             <option value="POST">POST</option>
+                         </select>
+                     </div>
+
+                     <div class="form-group" id="postDataGroup" style="display: none;">
+                         <label for="testData">POST Data (JSON):</label>
+                         <textarea id="testData" rows="4" placeholder='{"username": "test", "password": "test"}'></textarea>
+                     </div>
+
+                     <button type="submit" class="btn btn-secondary">Test API</button>
+                 </form>
+
+                 <div id="testResult" class="test-result" style="display: none;">
+                     <h3>Response:</h3>
+                     <pre id="testResponse"></pre>
+                 </div>
+             </section>
         </div>
     </div>
 

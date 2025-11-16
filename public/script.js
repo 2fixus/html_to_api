@@ -22,6 +22,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         addConfiguration(domain, baseUrl, selectors);
     });
+
+    // Handle test form submission
+    document.getElementById('testForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        testAPI();
+    });
+
+    // Toggle POST data field based on method
+    document.getElementById('testMethod').addEventListener('change', function() {
+        const postDataGroup = document.getElementById('postDataGroup');
+        postDataGroup.style.display = this.value === 'POST' ? 'block' : 'none';
+    });
 });
 
 async function loadConfigurations() {
@@ -141,6 +153,53 @@ async function testEndpoint(domain) {
             <h4>Test Failed</h4>
             <p><strong>Error:</strong> ${error.message}</p>
         `;
+    }
+}
+
+async function testAPI() {
+    const domain = document.getElementById('testDomain').value.trim();
+    const path = document.getElementById('testPath').value.trim();
+    const method = document.getElementById('testMethod').value;
+    const dataText = document.getElementById('testData').value.trim();
+
+    const testResultDiv = document.getElementById('testResult');
+    const testResponsePre = document.getElementById('testResponse');
+
+    testResultDiv.style.display = 'block';
+    testResponsePre.textContent = 'Testing...';
+
+    let body = null;
+    let headers = {};
+
+    if (method === 'POST' && dataText) {
+        try {
+            body = JSON.parse(dataText);
+            headers['Content-Type'] = 'application/json';
+        } catch (error) {
+            showAlert('Invalid JSON in POST data', 'error');
+            return;
+        }
+    }
+
+    try {
+        const response = await fetch(`/api/${domain}/${path}`, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : null
+        });
+
+        const data = await response.json();
+
+        testResponsePre.textContent = JSON.stringify(data, null, 2);
+
+        if (response.ok) {
+            showAlert('API test successful!', 'success');
+        } else {
+            showAlert(`API test failed: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        testResponsePre.textContent = `Error: ${error.message}`;
+        showAlert('API test failed', 'error');
     }
 }
 
