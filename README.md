@@ -35,6 +35,7 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **Authentication Automation**: Automated login flows for authenticated websites
 - **JavaScript Execution**: Handle dynamic/SPA websites with headless browser (Puppeteer)
 - **Batch Operations**: Execute multiple API requests in a single call
+- **IP Whitelisting**: Restrict API access to specified IP addresses
 
 ### 🔄 **Planned Advanced Features**
 None remaining - all features implemented!
@@ -209,8 +210,10 @@ npm run lint
 
 - This proxy makes requests on behalf of users - implement proper authentication
 - Be mindful of the target websites' terms of service
-- Rate limiting may be needed for production use
+- Rate limiting is enabled (100 requests per 15 minutes per IP)
+- IP whitelisting can be configured via ALLOWED_IPS environment variable
 - Validate and sanitize all inputs
+- Use HTTPS in production
 
 ## License
 

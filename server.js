@@ -18,7 +18,11 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// IP Whitelisting
+const allowedIPs = process.env.ALLOWED_IPS ? process.env.ALLOWED_IPS.split(',').map(ip => ip.trim()) : null;
+
 // Middleware
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors());
 app.use(morgan('combined'));
@@ -27,6 +31,14 @@ app.use(express.urlencoded({ extended: true }));
 
 // File upload middleware
 const upload = multer();
+
+// IP Whitelisting middleware
+app.use('/api/', (req, res, next) => {
+  if (allowedIPs && !allowedIPs.includes(req.ip)) {
+    return res.status(403).json({ error: 'Access denied: IP not whitelisted' });
+  }
+  next();
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -552,6 +564,7 @@ app.get('/help', (req, res) => {
       'Session Management',
       'Response Caching',
       'Rate Limiting',
+      'IP Whitelisting',
       'File Upload Support',
       'Authentication Automation',
       'JavaScript Execution with headless browser',
