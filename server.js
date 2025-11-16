@@ -1,6 +1,7 @@
 const express = require('express');
 const https = require('https');
 const axios = require('axios');
+const axiosRetry = require('axios-retry');
 const cheerio = require('cheerio');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -151,6 +152,15 @@ async function makeAPICall(domain, path, method = 'GET', data = null, config) {
   const url = `${config.baseUrl}/${path}`;
   const jar = getCookieJar(domain, config.baseUrl);
   const axiosInstance = cookieJarSupport(axios.create({ jar }));
+
+  // Configure retry logic with exponential backoff
+  axiosRetry(axiosInstance, {
+    retries: 3,
+    retryDelay: axiosRetry.exponentialDelay,
+    retryCondition: (error) => {
+      return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNRESET';
+    }
+  });
 
   const axiosConfig = {
     method,
