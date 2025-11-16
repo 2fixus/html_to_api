@@ -16,19 +16,25 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 
 ## Advanced Capabilities
 
-### Current Advanced Features
+### ✅ **Implemented Advanced Features**
+- **Session Management**: Cookie persistence across requests for authenticated sites
+- **Response Caching**: Memory-based caching with configurable TTL (5 minutes default)
+- **Rate Limiting**: 100 requests per 15 minutes per IP, 20 config requests per 15 minutes
 - **Custom Data Selectors**: Extract specific data using CSS selectors
 - **Form Field Detection**: Automatic discovery of input fields and form actions
 - **Response Transformation**: Convert HTML responses to structured JSON
 - **Multi-domain Support**: Configure multiple websites simultaneously
 - **Real-time Testing**: Built-in API testing interface
+- **Session Persistence**: Sessions saved to disk and restored on restart
+- **Cache Management**: API endpoints to monitor and clear cache
 
-### Planned Advanced Features
+### 🔄 **Planned Advanced Features**
 - **JavaScript Execution**: Handle dynamic/SPA websites with headless browser
 - **Authentication Automation**: Automated login flows and session management
-- **Caching & Performance**: Response caching and rate limiting
 - **File Upload Support**: Handle forms with file attachments
 - **Webhook Integration**: Async notifications for long-running operations
+- **Retry Logic**: Exponential backoff for failed requests
+- **Monitoring Dashboard**: Usage analytics and performance metrics
 - **Monitoring Dashboard**: Usage analytics and performance metrics
 
 ## Quick Start
@@ -84,9 +90,12 @@ curl http://localhost:3000/api/httpbin.org/get
     "title": "httpbin.org",
     "content": "..."
   },
-  "timestamp": "2024-01-01T00:00:00.000Z"
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "cached": false
 }
 ```
+
+**Note:** GET responses are cached for 5 minutes. Subsequent identical requests will return `"cached": true`.
 
 ### POST `/api/{domain}/{path}`
 Submit form data to an HTML page.
@@ -103,6 +112,21 @@ curl -X POST http://localhost:3000/api/example.com/login \
 - `GET /config` - List all configurations
 - `POST /config` - Add new configuration
 - `DELETE /config/{domain}` - Remove configuration
+
+### Session Management
+
+- `GET /sessions` - List all active sessions with cookie counts
+- `DELETE /sessions/{domain}` - Clear session for specific domain
+- `DELETE /sessions` - Clear all sessions
+
+### Cache Management
+
+- `GET /cache/stats` - Get cache statistics and keys
+- `DELETE /cache` - Clear all cached responses
+
+### Health & Monitoring
+
+- `GET /health` - Health check endpoint
 
 ## Configuration Format
 
