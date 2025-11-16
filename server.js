@@ -21,10 +21,13 @@ const PORT = process.env.PORT || 3000;
 // IP Whitelisting
 const allowedIPs = process.env.ALLOWED_IPS ? process.env.ALLOWED_IPS.split(',').map(ip => ip.trim()) : null;
 
+// CORS Origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
+
 // Middleware
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: allowedOrigins }));
 app.use(morgan('combined')); // Console logging
 app.use(morgan('combined', { stream: fs.createWriteStream(accessLogPath, { flags: 'a' }) })); // File logging
 app.use(express.json());
@@ -574,7 +577,8 @@ app.get('/help', (req, res) => {
       'Monitoring Dashboard',
       'Real-time Testing Interface',
       'Batch Operations',
-      'Audit Logging'
+      'Audit Logging',
+      'CORS Policies'
     ],
     endpoints: {
       'GET /': 'Serves the web interface',

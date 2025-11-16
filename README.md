@@ -37,6 +37,7 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **Batch Operations**: Execute multiple API requests in a single call
 - **IP Whitelisting**: Restrict API access to specified IP addresses
 - **Audit Logging**: Comprehensive request/response logging to access.log
+- **CORS Policies**: Granular cross-origin control via ALLOWED_ORIGINS
 
 ### 🔄 **Planned Advanced Features**
 None remaining - all features implemented!
