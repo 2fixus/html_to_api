@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const path = require('path');
 const multer = require('multer');
 const FormData = require('form-data');
+const puppeteer = require('puppeteer');
 const { CookieJar } = require('tough-cookie');
 const { wrapper: cookieJarSupport } = require('axios-cookiejar-support');
 const memoryCache = require('memory-cache');
@@ -164,6 +165,44 @@ async function performLogin(jar, baseUrl, auth) {
   }
 }
 
+// Get page content with headless browser for JS execution
+async function getPageWithBrowser(url, jar) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  });
+
+  try {
+    const page = await browser.newPage();
+
+    // Set cookies from jar
+    const cookies = jar.getCookiesSync(url);
+    for (const cookie of cookies) {
+      await page.setCookie({
+        name: cookie.key,
+        value: cookie.value,
+        domain: cookie.domain || new URL(url).hostname,
+        path: cookie.path || '/',
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure
+      });
+    }
+
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    const content = await page.content();
+
+    // Get cookies back to jar
+    const pageCookies = await page.cookies();
+    for (const cookie of pageCookies) {
+      jar.setCookieSync(`${cookie.name}=${cookie.value}; Domain=${cookie.domain}; Path=${cookie.path}`, url);
+    }
+
+    return content;
+  } finally {
+    await browser.close();
+  }
+}
+
 // Cache management functions
 function getCacheKey(domain, path, method = 'GET') {
   return `${method}:${domain}:${path}`;
@@ -202,43 +241,53 @@ async function makeAPICall(domain, path, method = 'GET', data = null, config) {
     }
   });
 
-  const axiosConfig = {
-    method,
-    url,
-    headers: {
-      'User-Agent': 'HTML-to-API-Proxy/1.0'
-    }
-  };
+  let html;
 
-  if (method === 'POST' && data) {
-    if (data.files && data.files.length > 0) {
-      // Handle file uploads
-      const form = new FormData();
+  if (method === 'GET' && config.useBrowser) {
+    // Use headless browser for JS execution
+    html = await getPageWithBrowser(url, jar);
+  } else {
+    // Use axios for regular requests
+    const axiosConfig = {
+      method,
+      url,
+      headers: {
+        'User-Agent': 'HTML-to-API-Proxy/1.0'
+      }
+    };
 
-      // Add form fields
-      Object.keys(data.body || {}).forEach(key => {
-        form.append(key, data.body[key]);
-      });
+    if (method === 'POST' && data) {
+      if (data.files && data.files.length > 0) {
+        // Handle file uploads
+        const form = new FormData();
 
-      // Add files
-      data.files.forEach(file => {
-        form.append(file.fieldname, file.buffer, {
-          filename: file.originalname,
-          contentType: file.mimetype
+        // Add form fields
+        Object.keys(data.body || {}).forEach(key => {
+          form.append(key, data.body[key]);
         });
-      });
 
-      axiosConfig.data = form;
-      axiosConfig.headers = { ...axiosConfig.headers, ...form.getHeaders() };
-    } else {
-      // Regular form data
-      axiosConfig.data = data.body || data;
-      axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        // Add files
+        data.files.forEach(file => {
+          form.append(file.fieldname, file.buffer, {
+            filename: file.originalname,
+            contentType: file.mimetype
+          });
+        });
+
+        axiosConfig.data = form;
+        axiosConfig.headers = { ...axiosConfig.headers, ...form.getHeaders() };
+      } else {
+        // Regular form data
+        axiosConfig.data = data.body || data;
+        axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      }
     }
+
+    const response = await axiosInstance.request(axiosConfig);
+    html = response.data;
   }
 
-  const response = await axiosInstance.request(axiosConfig);
-  const $ = cheerio.load(response.data);
+  const $ = cheerio.load(html);
   const extractedData = extractData($, config);
 
   const result = {
@@ -322,7 +371,7 @@ app.get('/config', (req, res) => {
 });
 
 app.post('/config', (req, res) => {
-  const { domain, baseUrl, selectors, auth, webhookUrl } = req.body;
+  const { domain, baseUrl, selectors, auth, webhookUrl, useBrowser } = req.body;
 
   if (!domain || !baseUrl) {
     return res.status(400).json({ error: 'Domain and baseUrl are required' });
@@ -333,6 +382,7 @@ app.post('/config', (req, res) => {
     selectors: selectors || {},
     auth: auth || null, // { username, password, loginPath }
     webhookUrl: webhookUrl || null,
+    useBrowser: useBrowser || false,
     created: new Date().toISOString()
   };
 
@@ -454,6 +504,77 @@ function extractData($, config) {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Help endpoint
+app.get('/help', (req, res) => {
+  res.json({
+    name: 'HTML-to-API Proxy',
+    version: '1.0.0',
+    description: 'A dynamic proxy server that converts any HTML-based website into a RESTful API.',
+    features: [
+      'Dynamic API Generation',
+      'HTML Parsing with CSS selectors',
+      'Form Detection and Submission',
+      'Session Management',
+      'Response Caching',
+      'Rate Limiting',
+      'File Upload Support',
+      'Authentication Automation',
+      'JavaScript Execution with headless browser',
+      'Webhook Integration',
+      'Monitoring Dashboard',
+      'Real-time Testing Interface'
+    ],
+    endpoints: {
+      'GET /': 'Serves the web interface',
+      'GET /config': 'List all configurations',
+      'POST /config': 'Add new configuration',
+      'DELETE /config/{domain}': 'Remove configuration',
+      'GET /api/{domain}/{path}': 'Fetch and parse HTML page',
+      'POST /api/{domain}/{path}': 'Submit form data',
+      'GET /sessions': 'List active sessions',
+      'DELETE /sessions/{domain}': 'Clear session for domain',
+      'DELETE /sessions': 'Clear all sessions',
+      'GET /cache/stats': 'Get cache statistics',
+      'DELETE /cache': 'Clear all cached responses',
+      'GET /metrics': 'Get usage metrics',
+      'GET /health': 'Health check',
+      'GET /help': 'This help information'
+    },
+    configuration: {
+      domain: 'Domain name (required)',
+      baseUrl: 'Base URL (required)',
+      selectors: 'CSS selectors for data extraction (optional)',
+      webhookUrl: 'URL for webhook notifications (optional)',
+      auth: {
+        username: 'Username for authentication',
+        password: 'Password for authentication',
+        loginPath: 'Login endpoint path'
+      },
+      useBrowser: 'Use headless browser for JS execution (boolean, optional)'
+    },
+    examples: {
+      configuration: {
+        domain: 'example.com',
+        baseUrl: 'https://example.com',
+        selectors: {
+          title: 'h1',
+          content: '.main-content'
+        },
+        webhookUrl: 'https://webhook.site/xxx',
+        auth: {
+          username: 'user',
+          password: 'pass',
+          loginPath: 'login'
+        },
+        useBrowser: true
+      },
+      api_get: 'GET /api/example.com/page',
+      api_post: 'POST /api/example.com/login -d "username=user&password=pass"'
+    },
+    security: 'Never log sensitive information. Validate inputs. Use HTTPS in production.'
+  });
 });
 
 // Metrics endpoint
