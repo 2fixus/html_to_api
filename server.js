@@ -54,6 +54,16 @@ let websiteConfigs = {};
 // Session storage for cookie jars (in production, use Redis/database)
 let sessionStore = {};
 
+// Metrics storage
+const metrics = {
+  totalRequests: 0,
+  totalErrors: 0,
+  requestCountByDomain: {},
+  responseTimeSum: 0,
+  responseTimeCount: 0,
+  startTime: Date.now()
+};
+
 // Load configuration from file if exists
 const fs = require('fs');
 const configPath = path.join(__dirname, 'config.json');
@@ -229,13 +239,21 @@ app.get('/api/:domain/*', async (req, res) => {
   const config = websiteConfigs[domain];
 
   if (!config) {
+    metrics.totalErrors++;
     return res.status(404).json({ error: `Domain ${domain} not configured` });
   }
 
+  const start = Date.now();
   try {
     const result = await makeAPICall(domain, path, 'GET', null, config);
+    const end = Date.now();
+    metrics.totalRequests++;
+    metrics.requestCountByDomain[domain] = (metrics.requestCountByDomain[domain] || 0) + 1;
+    metrics.responseTimeSum += (end - start);
+    metrics.responseTimeCount++;
     res.json(result);
   } catch (error) {
+    metrics.totalErrors++;
     console.error('Error fetching page:', error);
     res.status(500).json({ error: 'Failed to fetch page', details: error.message });
   }
@@ -248,13 +266,21 @@ app.post('/api/:domain/*', upload.any(), async (req, res) => {
   const config = websiteConfigs[domain];
 
   if (!config) {
+    metrics.totalErrors++;
     return res.status(404).json({ error: `Domain ${domain} not configured` });
   }
 
+  const start = Date.now();
   try {
     const result = await makeAPICall(domain, path, 'POST', req, config);
+    const end = Date.now();
+    metrics.totalRequests++;
+    metrics.requestCountByDomain[domain] = (metrics.requestCountByDomain[domain] || 0) + 1;
+    metrics.responseTimeSum += (end - start);
+    metrics.responseTimeCount++;
     res.json(result);
   } catch (error) {
+    metrics.totalErrors++;
     console.error('Error submitting form:', error);
     res.status(500).json({ error: 'Failed to submit form', details: error.message });
   }
@@ -397,6 +423,22 @@ function extractData($, config) {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Metrics endpoint
+app.get('/metrics', (req, res) => {
+  const avgResponseTime = metrics.responseTimeCount > 0 ? metrics.responseTimeSum / metrics.responseTimeCount : 0;
+  const uptime = Date.now() - metrics.startTime;
+
+  res.json({
+    totalRequests: metrics.totalRequests,
+    totalErrors: metrics.totalErrors,
+    errorRate: metrics.totalRequests > 0 ? (metrics.totalErrors / metrics.totalRequests) * 100 : 0,
+    averageResponseTime: Math.round(avgResponseTime),
+    requestCountByDomain: metrics.requestCountByDomain,
+    uptime: uptime,
+    uptimeFormatted: `${Math.floor(uptime / 1000 / 60 / 60)}h ${Math.floor((uptime / 1000 / 60) % 60)}m`
+  });
 });
 
 // Root endpoint serves the HTML interface

@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const postDataGroup = document.getElementById('postDataGroup');
         postDataGroup.style.display = this.value === 'POST' ? 'block' : 'none';
     });
+
+    // Load metrics on page load
+    loadMetrics();
+
+    // Handle refresh metrics
+    document.getElementById('refreshMetrics').addEventListener('click', loadMetrics);
 });
 
 async function loadConfigurations() {
@@ -200,6 +206,41 @@ async function testAPI() {
     } catch (error) {
         testResponsePre.textContent = `Error: ${error.message}`;
         showAlert('API test failed', 'error');
+    }
+}
+
+async function loadMetrics() {
+    try {
+        const response = await fetch('/metrics');
+        const data = await response.json();
+
+        const metricsDiv = document.getElementById('metricsData');
+        metricsDiv.innerHTML = `
+            <div class="metric-item">
+                <strong>Total Requests:</strong> ${data.totalRequests}
+            </div>
+            <div class="metric-item">
+                <strong>Total Errors:</strong> ${data.totalErrors}
+            </div>
+            <div class="metric-item">
+                <strong>Error Rate:</strong> ${data.errorRate.toFixed(2)}%
+            </div>
+            <div class="metric-item">
+                <strong>Average Response Time:</strong> ${data.averageResponseTime}ms
+            </div>
+            <div class="metric-item">
+                <strong>Uptime:</strong> ${data.uptimeFormatted}
+            </div>
+            <div class="metric-item">
+                <strong>Requests by Domain:</strong>
+                <ul>
+                    ${Object.entries(data.requestCountByDomain).map(([domain, count]) => `<li>${domain}: ${count}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading metrics:', error);
+        showAlert('Failed to load metrics', 'error');
     }
 }
 
