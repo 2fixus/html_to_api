@@ -14,6 +14,7 @@ const { CookieJar } = require('tough-cookie');
 const { wrapper: cookieJarSupport } = require('axios-cookiejar-support');
 const memoryCache = require('memory-cache');
 const rateLimit = require('express-rate-limit');
+const Joi = require('joi');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -80,6 +81,20 @@ const metrics = {
   responseTimeCount: 0,
   startTime: Date.now()
 };
+
+// Configuration validation schema
+const configSchema = Joi.object({
+  domain: Joi.string().domain().required(),
+  baseUrl: Joi.string().uri().required(),
+  selectors: Joi.object().optional(),
+  webhookUrl: Joi.string().uri().optional(),
+  auth: Joi.object({
+    username: Joi.string().required(),
+    password: Joi.string().required(),
+    loginPath: Joi.string().default('login')
+  }).optional(),
+  useBrowser: Joi.boolean().optional()
+});
 
 // Load configuration from file if exists
 const fs = require('fs');
@@ -388,16 +403,18 @@ app.get('/config', (req, res) => {
 });
 
 app.post('/config', (req, res) => {
-  const { domain, baseUrl, selectors, auth, webhookUrl, useBrowser } = req.body;
+  const { error, value } = configSchema.validate(req.body);
 
-  if (!domain || !baseUrl) {
-    return res.status(400).json({ error: 'Domain and baseUrl are required' });
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
   }
+
+  const { domain, baseUrl, selectors, auth, webhookUrl, useBrowser } = value;
 
   websiteConfigs[domain] = {
     baseUrl,
     selectors: selectors || {},
-    auth: auth || null, // { username, password, loginPath }
+    auth: auth || null,
     webhookUrl: webhookUrl || null,
     useBrowser: useBrowser || false,
     created: new Date().toISOString()
@@ -578,7 +595,8 @@ app.get('/help', (req, res) => {
       'Real-time Testing Interface',
       'Batch Operations',
       'Audit Logging',
-      'CORS Policies'
+      'CORS Policies',
+      'Configuration Validation'
     ],
     endpoints: {
       'GET /': 'Serves the web interface',
