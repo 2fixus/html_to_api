@@ -32,10 +32,10 @@ A dynamic proxy server that converts any HTML-based website into a RESTful API. 
 - **File Upload Support**: Handle forms with file attachments via multipart/form-data
 - **Monitoring Dashboard**: Usage analytics and performance metrics via /metrics endpoint
 - **Webhook Integration**: Async notifications sent to configured URLs after API calls
+- **Authentication Automation**: Automated login flows for authenticated websites
 
 ### 🔄 **Planned Advanced Features**
 - **JavaScript Execution**: Handle dynamic/SPA websites with headless browser
-- **Authentication Automation**: Automated login flows and session management
 
 ## Quick Start
 
