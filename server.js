@@ -229,6 +229,11 @@ async function makeAPICall(domain, path, method = 'GET', data = null, config) {
     setCachedResponse(cacheKey, result);
   }
 
+  // Send webhook notification if configured
+  if (config.webhookUrl) {
+    axios.post(config.webhookUrl, result).catch(err => console.error('Webhook failed:', err));
+  }
+
   return result;
 }
 
@@ -292,7 +297,7 @@ app.get('/config', (req, res) => {
 });
 
 app.post('/config', (req, res) => {
-  const { domain, baseUrl, selectors, auth } = req.body;
+  const { domain, baseUrl, selectors, auth, webhookUrl } = req.body;
 
   if (!domain || !baseUrl) {
     return res.status(400).json({ error: 'Domain and baseUrl are required' });
@@ -302,6 +307,7 @@ app.post('/config', (req, res) => {
     baseUrl,
     selectors: selectors || {},
     auth: auth || null, // { username, password, loginPath }
+    webhookUrl: webhookUrl || null,
     created: new Date().toISOString()
   };
 

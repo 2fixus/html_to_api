@@ -27,21 +27,26 @@
                         <input type="url" id="baseUrl" placeholder="https://example.com" required>
                     </div>
 
-                    <div class="form-group">
-                        <label for="selectors">Data Selectors (JSON):</label>
-                        <textarea id="selectors" rows="6" placeholder='{
-  "title": "h1",
-  "content": ".main-content",
-  "items": {
-    "type": "array",
-    "selector": ".item",
-    "fields": {
-      "name": ".name",
-      "price": ".price"
-    }
-  }
-}'></textarea>
-                    </div>
+                     <div class="form-group">
+                         <label for="selectors">Data Selectors (JSON):</label>
+                         <textarea id="selectors" rows="6" placeholder='{
+   "title": "h1",
+   "content": ".main-content",
+   "items": {
+     "type": "array",
+     "selector": ".item",
+     "fields": {
+       "name": ".name",
+       "price": ".price"
+     }
+   }
+ }'></textarea>
+                     </div>
+
+                     <div class="form-group">
+                         <label for="webhookUrl">Webhook URL (optional):</label>
+                         <input type="url" id="webhookUrl" placeholder="https://example.com/webhook">
+                     </div>
 
                     <button type="submit" class="btn btn-primary">Add Configuration</button>
                 </form>
